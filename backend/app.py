@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.models.fusion_engine import (
     evaluate_digital_twin_state,
+    simulate_in_silico_interventions,
     generate_fhir_r4_bundle,
     escalation_audit_log,
     df_ehr,
@@ -14,8 +15,8 @@ from backend.models.fusion_engine import (
 
 app = FastAPI(
     title="VitalTwins API",
-    description="Digital Twin Predictive Cardiovascular Anomaly Engine with XAI, FHIR R4 & P4 Medicine",
-    version="2.0.0"
+    description="Mechanistic PK/PD + ML Predictive Cardiovascular Digital Twin Engine",
+    version="3.0.0"
 )
 
 app.add_middleware(
@@ -28,7 +29,7 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"status": "online", "system": "VitalTwins API v2.0"}
+    return {"status": "online", "system": "VitalTwins Mechanistic PK/PD API v3.0"}
 
 @app.get("/api/patients")
 def get_all_patients():
@@ -39,14 +40,17 @@ def get_all_patients():
 def get_twin_state(patient_id: str, hour_offset: int):
     return evaluate_digital_twin_state(patient_id, hour_offset)
 
+@app.get("/api/simulate/{patient_id}/{hour_offset}")
+def get_in_silico_simulation(patient_id: str, hour_offset: int):
+    """Runs 12-hour counterfactual PK/PD drug simulations on the patient's Shadow Twin."""
+    return simulate_in_silico_interventions(patient_id, hour_offset)
+
 @app.get("/api/fhir/{patient_id}/{hour_offset}")
 def get_fhir_bundle(patient_id: str, hour_offset: int):
-    """Returns HL7 FHIR R4 compliant JSON Bundle for hospital EHR interoperability."""
     return generate_fhir_r4_bundle(patient_id, hour_offset)
 
 @app.get("/api/escalations")
 def get_escalation_logs():
-    """Returns automated emergency webhook dispatch logs."""
     return {"escalations": escalation_audit_log[:10]}
 
 @app.get("/api/stream/{patient_id}")

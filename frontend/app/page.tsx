@@ -15,6 +15,8 @@ import {
   Smartphone,
   Stethoscope,
   CheckCircle2,
+  FlaskConical,
+  Sparkles,
   X
 } from "lucide-react";
 
@@ -66,20 +68,71 @@ interface TwinState {
   escalation_triggered: EscalationEvent | null;
 }
 
+interface TrajectoryPoint {
+  hour_ahead: number;
+  plasma_conc_ng_ml?: number;
+  hr_bpm: number;
+  hrv_ms: number;
+  spo2_pct: number;
+  risk_pct: number;
+}
+
+interface DrugSimulation {
+  drug_id: string;
+  name: string;
+  drug_class: string;
+  final_12h_risk_pct: number;
+  absolute_risk_reduction_pct: number;
+  min_simulated_hr_bpm: number;
+  safety_status: string;
+  bradycardia_warning: boolean;
+  utility_score: number;
+  trajectory: TrajectoryPoint[];
+}
+
+interface InSilicoResponse {
+  patient_id: string;
+  patient_name: string;
+  hour_offset: number;
+  patient_pk_parameters: {
+    estimated_weight_kg: number;
+    renal_clearance_factor: number;
+    baseline_hr_bpm: number;
+    baseline_hrv_ms: number;
+  };
+  optimal_recommendation: {
+    drug_id: string;
+    drug_name: string;
+    rationale: string;
+  };
+  untreated_trajectory: TrajectoryPoint[];
+  ranked_interventions: DrugSimulation[];
+}
+
 export default function VitalTwinsDashboard() {
   const [selectedPatient, setSelectedPatient] = useState("PAT_001");
   const [hour, setHour] = useState(47);
   const [twinData, setTwinData] = useState<TwinState | null>(null);
+  const [simData, setSimData] = useState<InSilicoResponse | null>(null);
+  const [selectedDrugId, setSelectedDrugId] = useState<string>("AMIODARONE_200");
   const [viewMode, setViewMode] = useState<"DOCTOR" | "PATIENT">("DOCTOR");
   const [isSimulating, setIsSimulating] = useState(false);
   const [showFhirModal, setShowFhirModal] = useState(false);
   const [fhirJson, setFhirJson] = useState<Record<string, unknown> | null>(null);
 
-  const fetchTwinState = async (pid: string, h: number) => {
+  const fetchTwinAndSim = async (pid: string, h: number) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/twin/${pid}/${h}`);
-      const data = await res.json();
-      setTwinData(data);
+      const [twinRes, simRes] = await Promise.all([
+        fetch(`http://127.0.0.1:8000/api/twin/${pid}/${h}`),
+        fetch(`http://127.0.0.1:8000/api/simulate/${pid}/${h}`)
+      ]);
+      const tJson = await twinRes.json();
+      const sJson: InSilicoResponse = await simRes.json();
+      setTwinData(tJson);
+      setSimData(sJson);
+      if (sJson?.optimal_recommendation?.drug_id) {
+        setSelectedDrugId(sJson.optimal_recommendation.drug_id);
+      }
     } catch (err) {
       console.error("Failed to connect to VitalTwins backend:", err);
     }
@@ -97,7 +150,7 @@ export default function VitalTwinsDashboard() {
   };
 
   useEffect(() => {
-    fetchTwinState(selectedPatient, hour);
+    fetchTwinAndSim(selectedPatient, hour);
   }, [selectedPatient, hour]);
 
   useEffect(() => {
@@ -105,27 +158,26 @@ export default function VitalTwinsDashboard() {
     if (isSimulating) {
       interval = setInterval(() => {
         setHour((prev) => (prev >= 47 ? 0 : prev + 1));
-      }, 800);
+      }, 900);
     }
     return () => clearInterval(interval);
   }, [isSimulating]);
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 p-6 font-sans">
-      {/* Top Navigation & Innovation Toggles */}
+      {/* Header */}
       <header className="flex flex-wrap justify-between items-center border-b border-slate-800 pb-4 mb-6 gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-cyan-400 flex items-center gap-2">
             <Activity className="h-7 w-7 text-cyan-400 animate-pulse" />
-            VitalTwins | Predictive Cardiovascular Twin
+            VitalTwins | Mechanistic PK/PD Digital Twin
           </h1>
           <p className="text-xs text-slate-400 mt-0.5">
-            XAI Feature Attribution • HL7 FHIR R4 Interoperable • Automated Escalation • P4 Medicine
+            In-Silico Drug Trials • XAI Attribution • HL7 FHIR R4 • Automated Escalation • P4 Medicine
           </p>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          {/* P4 Medicine View Switcher */}
           <div className="bg-slate-900 border border-slate-800 p-1 rounded-lg flex items-center">
             <button
               onClick={() => setViewMode("DOCTOR")}
@@ -151,7 +203,6 @@ export default function VitalTwinsDashboard() {
             </button>
           </div>
 
-          {/* HL7 FHIR Export Button */}
           <button
             onClick={fetchFhirBundle}
             className="px-3.5 py-2 rounded-lg font-medium text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 flex items-center gap-1.5 transition-all"
@@ -160,7 +211,6 @@ export default function VitalTwinsDashboard() {
             Export HL7 FHIR R4
           </button>
 
-          {/* Live Stream Button */}
           <button
             onClick={() => setIsSimulating(!isSimulating)}
             className={`px-4 py-2 rounded-lg font-medium text-xs transition-all flex items-center gap-1.5 ${
@@ -176,7 +226,7 @@ export default function VitalTwinsDashboard() {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Left Cohort Sidebar */}
+        {/* Left Sidebar */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col gap-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
             Sandbox Patient Cohort
@@ -213,9 +263,9 @@ export default function VitalTwinsDashboard() {
             </button>
           </div>
 
-          {twinData && (
-            <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 mt-2 text-xs space-y-1.5">
-              <div className="font-semibold text-slate-400 uppercase">Static EHR Snapshot</div>
+          {twinData && simData && (
+            <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 mt-1 text-xs space-y-1.5">
+              <div className="font-semibold text-slate-400 uppercase">Patient Twin Parameters</div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Baseline BP:</span>
                 <span className="font-mono">{twinData.ehr_summary.bp} mmHg</span>
@@ -225,8 +275,14 @@ export default function VitalTwinsDashboard() {
                 <span className="font-mono">{twinData.ehr_summary.cholesterol} mg/dL</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">BMI:</span>
-                <span className="font-mono">{twinData.ehr_summary.bmi}</span>
+                <span className="text-slate-500">Est. Weight (Vd):</span>
+                <span className="font-mono">{simData.patient_pk_parameters.estimated_weight_kg} kg</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Renal Clearance:</span>
+                <span className="font-mono text-amber-300">
+                  {simData.patient_pk_parameters.renal_clearance_factor}x
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">XGBoost EHR Risk:</span>
@@ -235,7 +291,6 @@ export default function VitalTwinsDashboard() {
             </div>
           )}
 
-          {/* Time-Series Scrubber Always Accessible */}
           <div className="mt-auto border-t border-slate-800 pt-4 flex flex-col gap-2">
             <div className="flex justify-between items-center text-xs">
               <span className="text-slate-400 flex items-center gap-1">
@@ -257,7 +312,7 @@ export default function VitalTwinsDashboard() {
           </div>
         </div>
 
-        {/* Right Content Area: Switches between Doctor View and P4 Patient View */}
+        {/* Right Area */}
         <div className="lg:col-span-3">
           {!twinData ? (
             <div className="flex items-center justify-center h-96 text-slate-400">
@@ -271,7 +326,7 @@ export default function VitalTwinsDashboard() {
         </div>
       </div>
 
-      {/* HL7 FHIR R4 Modal */}
+      {/* FHIR R4 Modal */}
       {showFhirModal && (
         <div className="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-3xl w-full max-h-[80vh] flex flex-col">
@@ -299,17 +354,20 @@ export default function VitalTwinsDashboard() {
   function renderDoctorView(data: TwinState) {
     const isRed = data.clinical_status === "RED";
     const isYellow = data.clinical_status === "YELLOW";
+    const activeDrug =
+      simData?.ranked_interventions.find((d) => d.drug_id === selectedDrugId) ||
+      simData?.ranked_interventions[0];
 
     return (
       <div className="flex flex-col gap-5">
         {/* Patient Banner */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-wrap justify-between items-center gap-4">
-          <div className="flex items-center gap-4">
-            <div className="bg-slate-800 p-3 rounded-xl border border-slate-700">
-              <User className="h-7 w-7 text-cyan-400" />
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-wrap justify-between items-center gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="bg-slate-800 p-2.5 rounded-xl border border-slate-700">
+              <User className="h-6 w-6 text-cyan-400" />
             </div>
             <div>
-              <h2 className="text-xl font-bold">{data.name}</h2>
+              <h2 className="text-lg font-bold">{data.name}</h2>
               <p className="text-xs text-slate-400">
                 ID: {data.patient_id} • {data.gender}, {data.age} yrs • Telemetry Offset: +{data.hour_offset}h
               </p>
@@ -317,7 +375,7 @@ export default function VitalTwinsDashboard() {
           </div>
 
           <div
-            className={`px-5 py-2 rounded-xl flex items-center gap-3 border ${
+            className={`px-4 py-2 rounded-xl flex items-center gap-2.5 border ${
               isRed
                 ? "bg-red-950/60 border-red-500/50 text-red-200"
                 : isYellow
@@ -326,20 +384,20 @@ export default function VitalTwinsDashboard() {
             }`}
           >
             {isRed ? (
-              <AlertTriangle className="h-6 w-6 text-red-400 animate-bounce" />
+              <AlertTriangle className="h-5 w-5 text-red-400 animate-bounce" />
             ) : isYellow ? (
-              <AlertTriangle className="h-6 w-6 text-amber-400" />
+              <AlertTriangle className="h-5 w-5 text-amber-400" />
             ) : (
-              <ShieldCheck className="h-6 w-6 text-emerald-400" />
+              <ShieldCheck className="h-5 w-5 text-emerald-400" />
             )}
             <div>
               <div className="text-[10px] uppercase font-semibold tracking-wider">Disposition Flag</div>
-              <div className="font-bold text-sm">{data.clinical_status} STATUS</div>
+              <div className="font-bold text-xs">{data.clinical_status} STATUS</div>
             </div>
           </div>
         </div>
 
-        {/* Live Wearable Cards */}
+        {/* Vitals Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
             <div className="text-xs text-slate-400 flex items-center gap-1.5 mb-1">
@@ -369,13 +427,138 @@ export default function VitalTwinsDashboard() {
           </div>
         </div>
 
-        {/* Two-Column Section: Fusion Risk + Explainable AI (XAI) */}
+        {/* TRUE DIGITAL TWIN: IN-SILICO PK/PD VIRTUAL THERAPEUTICS LAB */}
+        {simData && activeDrug && (
+          <div className="bg-slate-900 border-2 border-cyan-500/40 rounded-xl p-5 space-y-4">
+            <div className="flex flex-wrap justify-between items-start gap-4 border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-cyan-400 flex items-center gap-2">
+                  <FlaskConical className="h-5 w-5 text-cyan-400" />
+                  In-Silico PK/PD Shadow Twin Simulator (12-Hour Counterfactual Forecast)
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Tests virtual drug absorption (Bateman PK) & organ response (Hill PD) on this patient&apos;s digital replica before prescribing.
+                </p>
+              </div>
+              <div className="bg-emerald-950/60 border border-emerald-500/40 px-3 py-1.5 rounded-lg text-xs">
+                <div className="text-[10px] uppercase font-bold text-emerald-400 flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" /> Optimal Twin Regimen
+                </div>
+                <div className="font-semibold text-emerald-200">
+                  {simData.optimal_recommendation.drug_name}
+                </div>
+              </div>
+            </div>
+
+            {/* Candidate Drug Selector Tabs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+              {simData.ranked_interventions.map((d, idx) => {
+                const isSelected = d.drug_id === activeDrug.drug_id;
+                return (
+                  <button
+                    key={d.drug_id}
+                    onClick={() => setSelectedDrugId(d.drug_id)}
+                    className={`p-3 rounded-lg border text-left transition-all ${
+                      isSelected
+                        ? "bg-cyan-950/70 border-cyan-400 text-white"
+                        : "bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-800/60"
+                    }`}
+                  >
+                    <div className="flex justify-between items-center text-[10px] font-mono mb-1">
+                      <span className={idx === 0 ? "text-emerald-400 font-bold" : "text-slate-400"}>
+                        {idx === 0 ? "★ RANK #1 BEST" : `RANK #${idx + 1}`}
+                      </span>
+                      <span className="text-cyan-300 font-bold">-{d.absolute_risk_reduction_pct}% Risk</span>
+                    </div>
+                    <div className="text-xs font-bold truncate">{d.name}</div>
+                    <div className="text-[10px] text-slate-400 truncate mt-0.5">{d.drug_class}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Dual Counterfactual Trajectory Charts (SVG) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pt-1">
+              {/* Chart 1: Heart Rate Counterfactual (Untreated Red vs Treated Cyan) */}
+              <div className="lg:col-span-2 bg-slate-950 border border-slate-800 rounded-lg p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs font-semibold text-slate-300">
+                    12-Hour Heart Rate Trajectory: Untreated vs. Shadow Twin
+                  </span>
+                  <div className="flex items-center gap-3 text-[11px]">
+                    <span className="flex items-center gap-1 text-rose-400">
+                      <span className="w-2.5 h-0.5 bg-rose-500 inline-block" /> Untreated Crash
+                    </span>
+                    <span className="flex items-center gap-1 text-cyan-400">
+                      <span className="w-2.5 h-0.5 bg-cyan-400 inline-block" /> Treated Twin
+                    </span>
+                  </div>
+                </div>
+                {renderCounterfactualChart(
+                  simData.untreated_trajectory,
+                  activeDrug.trajectory
+                )}
+              </div>
+
+              {/* PK/PD Metrics & Plasma Curve Summary */}
+              <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 flex flex-col justify-between space-y-3">
+                <div>
+                  <div className="text-xs font-semibold text-slate-400 uppercase mb-2">
+                    In-Silico Trial Verdict
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">12h Untreated Risk:</span>
+                      <span className="font-mono font-bold text-rose-400">
+                        {simData.untreated_trajectory[12].risk_pct}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">12h Treated Risk:</span>
+                      <span className="font-mono font-bold text-emerald-400">
+                        {activeDrug.final_12h_risk_pct}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Min Simulated HR:</span>
+                      <span className="font-mono font-bold text-cyan-300">
+                        {activeDrug.min_simulated_hr_bpm} bpm
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Peak Plasma Conc:</span>
+                      <span className="font-mono text-purple-300">
+                        {Math.max(...activeDrug.trajectory.map((t) => t.plasma_conc_ng_ml || 0))} ng/mL
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  className={`p-2.5 rounded-lg border text-xs ${
+                    activeDrug.bradycardia_warning
+                      ? "bg-amber-950/50 border-amber-500/50 text-amber-200"
+                      : "bg-emerald-950/50 border-emerald-500/50 text-emerald-200"
+                  }`}
+                >
+                  <div className="font-bold text-[11px] uppercase">{activeDrug.safety_status}</div>
+                  <div className="text-[11px] mt-0.5 opacity-90">
+                    {activeDrug.bradycardia_warning
+                      ? "High dose causes excessive sinus node suppression (<55 bpm). Select lower dose."
+                      : "Stabilizes autonomic HRV without inducing bradycardia."}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Fusion Risk + Explainable AI (XAI) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* Fused Risk Gauge */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col justify-between">
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
-                Digital Twin Fused Anomaly Probability
+                Current Digital Twin Anomaly Probability
               </h3>
               <div className="flex items-center gap-4 my-2">
                 <div className="text-4xl font-extrabold font-mono text-cyan-400">
@@ -400,7 +583,6 @@ export default function VitalTwinsDashboard() {
             </div>
           </div>
 
-          {/* INNOVATION 1: Explainable AI (XAI) Attribution */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5 mb-3">
               <Cpu className="h-4 w-4" /> Explainable AI (XAI) Risk Attribution
@@ -427,7 +609,7 @@ export default function VitalTwinsDashboard() {
           </div>
         </div>
 
-        {/* INNOVATION 3: Automated Emergency Escalation Webhook Feed */}
+        {/* Escalation Webhook Feed */}
         {data.escalation_triggered && (
           <div className="bg-red-950/40 border border-red-500/60 rounded-xl p-4 flex items-start gap-3.5">
             <BellRing className="h-6 w-6 text-red-400 shrink-0 mt-0.5 animate-ping" />
@@ -444,6 +626,98 @@ export default function VitalTwinsDashboard() {
           </div>
         )}
       </div>
+    );
+  }
+
+  function renderCounterfactualChart(
+    untreated: TrajectoryPoint[],
+    treated: TrajectoryPoint[]
+  ) {
+    const width = 520;
+    const height = 160;
+    const padX = 32;
+    const padY = 18;
+    const minHR = 45;
+    const maxHR = 145;
+
+    const mapX = (h: number) => padX + (h / 12) * (width - padX * 2);
+    const mapY = (hr: number) =>
+      height - padY - ((hr - minHR) / (maxHR - minHR)) * (height - padY * 2);
+
+    const untreatedPoints = untreated
+      .map((pt) => `${mapX(pt.hour_ahead)},${mapY(pt.hr_bpm)}`)
+      .join(" ");
+    const treatedPoints = treated
+      .map((pt) => `${mapX(pt.hour_ahead)},${mapY(pt.hr_bpm)}`)
+      .join(" ");
+
+    return (
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-40 overflow-visible">
+        {/* Safe Threshold Reference Lines */}
+        <line
+          x1={padX}
+          y1={mapY(100)}
+          x2={width - padX}
+          y2={mapY(100)}
+          stroke="#334155"
+          strokeDasharray="4 4"
+          strokeWidth="1"
+        />
+        <text x={4} y={mapY(100) + 3} className="fill-slate-500 text-[9px] font-mono">
+          100
+        </text>
+
+        <line
+          x1={padX}
+          y1={mapY(60)}
+          x2={width - padX}
+          y2={mapY(60)}
+          stroke="#334155"
+          strokeDasharray="4 4"
+          strokeWidth="1"
+        />
+        <text x={8} y={mapY(60) + 3} className="fill-slate-500 text-[9px] font-mono">
+          60
+        </text>
+
+        {/* Untreated Crash Line (Red) */}
+        <polyline
+          fill="none"
+          stroke="#f43f5e"
+          strokeWidth="2.5"
+          strokeDasharray="5 3"
+          points={untreatedPoints}
+        />
+
+        {/* Treated Shadow Twin Line (Cyan) */}
+        <polyline
+          fill="none"
+          stroke="#22d3ee"
+          strokeWidth="3"
+          points={treatedPoints}
+        />
+
+        {/* Data Nodes */}
+        {treated.map((pt) => (
+          <g key={pt.hour_ahead}>
+            <circle
+              cx={mapX(pt.hour_ahead)}
+              cy={mapY(pt.hr_bpm)}
+              r="3"
+              className="fill-cyan-400"
+            />
+            {pt.hour_ahead % 3 === 0 && (
+              <text
+                x={mapX(pt.hour_ahead) - 8}
+                y={height - 2}
+                className="fill-slate-400 text-[9px] font-mono"
+              >
+                +{pt.hour_ahead}h
+              </text>
+            )}
+          </g>
+        ))}
+      </svg>
     );
   }
 
@@ -473,14 +747,12 @@ export default function VitalTwinsDashboard() {
           </div>
         </div>
 
-        {/* Friendly Coach Card */}
         <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4">
           <p className="text-sm text-slate-200 leading-relaxed">
             {data.p4_companion.friendly_message}
           </p>
         </div>
 
-        {/* Simplified Vitals for Patient */}
         <div className="grid grid-cols-2 gap-3 text-center">
           <div className="bg-slate-800/50 rounded-xl p-3">
             <div className="text-xs text-slate-400">Heart Rate</div>
@@ -496,7 +768,6 @@ export default function VitalTwinsDashboard() {
           </div>
         </div>
 
-        {/* Participatory Action Checklist */}
         <div className="space-y-2">
           <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
             Recommended Next Steps Right Now
