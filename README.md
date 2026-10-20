@@ -142,17 +142,10 @@ flowchart TD
 
 ---
 
-## 🎥 8. 15–20 Minute Prototype Demonstration Video (Unlisted YouTube)
+## 🎥 8. Prototype Demonstration Video (YouTube)
 
 > 🔗 **Watch the Full Technical Explanation & Live Prototype Demo:**  
-> **[▶️ Click Here to Watch on YouTube (Unlisted Link — Placeholder)](https://youtu.be/YOUR_UNLISTED_VIDEO_ID_HERE)**
-
-**Video Walkthrough Timestamps:**
-- `00:00 – 02:30` : Problem Statement, Clinical Gap in India, and True Digital Twin Architecture
-- `02:30 – 05:00` : DPDP-Compliant Sandbox Data Synthesis (`synthetic_ehr.csv` & `wearable_stream.csv`) & XGBoost Baseline Training
-- `05:00 – 08:30` : Multimodal Fusion Engine, Explainable AI (XAI), and Mechanistic PK/PD Differential Equations (`fusion_engine.py`)
-- `08:30 – 13:00` : Live Clinical Dashboard Demo (48h Telemetry Scrubbing, Automated Escalation & 12h In-Silico PK/PD Drug Trials)
-- `13:00 – 15:30` : HL7 FHIR R4 Hospital Interoperability Export, P4 Participatory Patient Companion View & FastAPI Endpoints
+> **[▶️ Click Here to Watch on YouTube ](https://youtu.be/d6JHxDK8TsQ)**
 
 ---
 
@@ -173,8 +166,7 @@ All project details, mathematical formulations, system architecture diagrams, an
 ### Step 1: Clone the Repository & Launch the FastAPI Backend
 
 ```bash
-git clone https://github.com/YOUR_GITHUB_USERNAME/Ctrl-Win_PCCOE.git
-cd Ctrl-Win_PCCOE
+git clone https://github.com/p-rth12999/VitalTwins-Digital-Twins-Application.git
 
 # Create and activate virtual environment
 python -m venv venv
@@ -212,20 +204,4 @@ This project is licensed under the **MIT License** — making it completely open
 
 ```text
 MIT License
-
-Copyright (c) 2026 Team Ctrl Win (Parth Kulkarni, PCCOE Pune)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 ```
