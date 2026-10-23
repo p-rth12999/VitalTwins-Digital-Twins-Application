@@ -17,6 +17,14 @@ import {
   CheckCircle2,
   FlaskConical,
   Sparkles,
+  FileText,
+  Printer,
+  ClipboardCheck,
+  Users,
+  Watch,
+  PhoneCall,
+  RefreshCw,
+  TrendingDown,
   X
 } from "lucide-react";
 
@@ -36,6 +44,8 @@ interface EscalationEvent {
   dispatched_to: string;
   channel: string;
   message: string;
+  acknowledged?: boolean;
+  acknowledged_at?: string;
 }
 
 interface TwinState {
@@ -109,27 +119,75 @@ interface InSilicoResponse {
   ranked_interventions: DrugSimulation[];
 }
 
+const COHORT_CARDS = [
+  {
+    id: "PAT_001",
+    name: "Rajesh Sharma (PAT_001)",
+    subtitle: "61M • Autonomic Collapse & Arrhythmia",
+    badgeColor: "text-red-400",
+    defaultHour: 47
+  },
+  {
+    id: "PAT_002",
+    name: "Ananya Deshmukh (PAT_002)",
+    subtitle: "34F • Healthy Control Profile",
+    badgeColor: "text-emerald-400",
+    defaultHour: 12
+  },
+  {
+    id: "PAT_003",
+    name: "Sunita Mehta (PAT_003)",
+    subtitle: "58F • Post-MI Nocturnal SpO2 Drift",
+    badgeColor: "text-amber-400",
+    defaultHour: 42
+  },
+  {
+    id: "PAT_004",
+    name: "Vikram Malhotra (PAT_004)",
+    subtitle: "42M • Sympathetic Stress Tachycardia",
+    badgeColor: "text-purple-400",
+    defaultHour: 28
+  }
+];
+
 export default function VitalTwinsDashboard() {
   const [selectedPatient, setSelectedPatient] = useState("PAT_001");
   const [hour, setHour] = useState(47);
   const [twinData, setTwinData] = useState<TwinState | null>(null);
   const [simData, setSimData] = useState<InSilicoResponse | null>(null);
   const [selectedDrugId, setSelectedDrugId] = useState<string>("AMIODARONE_200");
-  const [viewMode, setViewMode] = useState<"DOCTOR" | "PATIENT">("DOCTOR");
+  const [viewMode, setViewMode] = useState<"DOCTOR" | "CAREGIVER" | "PATIENT">("DOCTOR");
   const [isSimulating, setIsSimulating] = useState(false);
+
+  // Wearable Sync Bridge state
+  const [showWatchModal, setShowWatchModal] = useState(false);
+  const [isSyncingWatch, setIsSyncingWatch] = useState(false);
+  const [lastSyncText, setLastSyncText] = useState("Synced 12s ago via Health Connect");
+
+  // Chronic Lifestyle Simulator state (Caregiver / Patient)
+  const [targetWeightLossKg, setTargetWeightLossKg] = useState(4);
+  const [dailyWalkMins, setDailyWalkMins] = useState(30);
+
+  // Modals
   const [showFhirModal, setShowFhirModal] = useState(false);
   const [fhirJson, setFhirJson] = useState<Record<string, unknown> | null>(null);
+  const [showAuditModal, setShowAuditModal] = useState(false);
+  const [escalationLogs, setEscalationLogs] = useState<EscalationEvent[]>([]);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const fetchTwinAndSim = async (pid: string, h: number) => {
     try {
-      const [twinRes, simRes] = await Promise.all([
+      const [twinRes, simRes, escRes] = await Promise.all([
         fetch(`http://127.0.0.1:8000/api/twin/${pid}/${h}`),
-        fetch(`http://127.0.0.1:8000/api/simulate/${pid}/${h}`)
+        fetch(`http://127.0.0.1:8000/api/simulate/${pid}/${h}`),
+        fetch(`http://127.0.0.1:8000/api/escalations`)
       ]);
       const tJson = await twinRes.json();
       const sJson: InSilicoResponse = await simRes.json();
+      const eJson = await escRes.json();
       setTwinData(tJson);
       setSimData(sJson);
+      setEscalationLogs(eJson.escalations || []);
       if (sJson?.optimal_recommendation?.drug_id) {
         setSelectedDrugId(sJson.optimal_recommendation.drug_id);
       }
@@ -147,6 +205,28 @@ export default function VitalTwinsDashboard() {
     } catch (err) {
       console.error("Failed to fetch FHIR bundle:", err);
     }
+  };
+
+  const handleAcknowledge = async (eventId: string) => {
+    try {
+      await fetch(`http://127.0.0.1:8000/api/escalations/ack/${eventId}`, {
+        method: "POST"
+      });
+      const escRes = await fetch(`http://127.0.0.1:8000/api/escalations`);
+      const eJson = await escRes.json();
+      setEscalationLogs(eJson.escalations || []);
+    } catch (err) {
+      console.error("Failed to acknowledge event:", err);
+    }
+  };
+
+  const triggerWatchSync = () => {
+    setIsSyncingWatch(true);
+    setTimeout(() => {
+      setIsSyncingWatch(false);
+      setLastSyncText("Just now • BLE Packet Verified");
+      fetchTwinAndSim(selectedPatient, hour);
+    }, 900);
   };
 
   useEffect(() => {
@@ -170,14 +250,15 @@ export default function VitalTwinsDashboard() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-cyan-400 flex items-center gap-2">
             <Activity className="h-7 w-7 text-cyan-400 animate-pulse" />
-            VitalTwins | Mechanistic PK/PD Digital Twin
+            VitalTwins | Tri-Node Cardiovascular Digital Twin
           </h1>
           <p className="text-xs text-slate-400 mt-0.5">
-            In-Silico Drug Trials • XAI Attribution • HL7 FHIR R4 • Automated Escalation • P4 Medicine
+            Edge Smartwatch Bridge • Family Caregiver Monitor • In-Silico PK/PD Trials • HL7 FHIR R4
           </p>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* 3-Node Ecosystem View Switcher */}
           <div className="bg-slate-900 border border-slate-800 p-1 rounded-lg flex items-center">
             <button
               onClick={() => setViewMode("DOCTOR")}
@@ -188,7 +269,18 @@ export default function VitalTwinsDashboard() {
               }`}
             >
               <Stethoscope className="h-3.5 w-3.5" />
-              Doctor Command Center
+              Doctor View
+            </button>
+            <button
+              onClick={() => setViewMode("CAREGIVER")}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                viewMode === "CAREGIVER"
+                  ? "bg-indigo-600 text-white"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <Users className="h-3.5 w-3.5" />
+              Family Caregiver
             </button>
             <button
               onClick={() => setViewMode("PATIENT")}
@@ -199,28 +291,58 @@ export default function VitalTwinsDashboard() {
               }`}
             >
               <Smartphone className="h-3.5 w-3.5" />
-              P4 Patient Companion
+              P4 Companion
             </button>
           </div>
 
+          {/* Edge Smartwatch Ingestion Bridge Button */}
           <button
-            onClick={fetchFhirBundle}
-            className="px-3.5 py-2 rounded-lg font-medium text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 flex items-center gap-1.5 transition-all"
+            onClick={() => setShowWatchModal(true)}
+            className="px-3 py-2 rounded-lg font-medium text-xs bg-slate-900 hover:bg-slate-800 border border-emerald-500/40 text-emerald-300 flex items-center gap-1.5 transition-all"
           >
-            <FileJson className="h-4 w-4" />
-            Export HL7 FHIR R4
+            <Watch className="h-4 w-4 text-emerald-400" />
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            Smartwatch Bridge
           </button>
 
+          {/* Clinical Handoff PDF Report Button */}
+          <button
+            onClick={() => setShowReportModal(true)}
+            className="px-3 py-2 rounded-lg font-medium text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-300 flex items-center gap-1.5 transition-all"
+          >
+            <FileText className="h-4 w-4" />
+            Clinical PDF
+          </button>
+
+          {/* Escalation Audit Trail Button */}
+          <button
+            onClick={() => setShowAuditModal(true)}
+            className="px-3 py-2 rounded-lg font-medium text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-rose-300 flex items-center gap-1.5 transition-all"
+          >
+            <BellRing className="h-4 w-4" />
+            Escalations ({escalationLogs.length})
+          </button>
+
+          {/* FHIR Export Button */}
+          <button
+            onClick={fetchFhirBundle}
+            className="px-3 py-2 rounded-lg font-medium text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 flex items-center gap-1.5 transition-all"
+          >
+            <FileJson className="h-4 w-4" />
+            FHIR R4
+          </button>
+
+          {/* Live Stream Button */}
           <button
             onClick={() => setIsSimulating(!isSimulating)}
-            className={`px-4 py-2 rounded-lg font-medium text-xs transition-all flex items-center gap-1.5 ${
+            className={`px-3.5 py-2 rounded-lg font-medium text-xs transition-all flex items-center gap-1.5 ${
               isSimulating
                 ? "bg-amber-600 hover:bg-amber-500 text-white"
                 : "bg-cyan-600 hover:bg-cyan-500 text-white"
             }`}
           >
             <Zap className="h-4 w-4" />
-            {isSimulating ? "Pause Live Stream" : "Simulate 48h Stream"}
+            {isSimulating ? "Pause Stream" : "Simulate 48h"}
           </button>
         </div>
       </header>
@@ -229,38 +351,27 @@ export default function VitalTwinsDashboard() {
         {/* Left Sidebar */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col gap-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Sandbox Patient Cohort
+            Sandbox Patient Cohort (4 Archetypes)
           </h2>
           <div className="flex flex-col gap-2">
-            <button
-              onClick={() => {
-                setSelectedPatient("PAT_001");
-                setHour(47);
-              }}
-              className={`p-3 rounded-lg text-left transition-all border ${
-                selectedPatient === "PAT_001"
-                  ? "bg-cyan-950/50 border-cyan-500 text-cyan-200"
-                  : "bg-slate-800/50 border-transparent text-slate-300 hover:bg-slate-800"
-              }`}
-            >
-              <div className="font-semibold text-sm">Rajesh Sharma (PAT_001)</div>
-              <div className="text-xs text-red-400 mt-1">61M • Hypertension & Diabetes</div>
-            </button>
-
-            <button
-              onClick={() => {
-                setSelectedPatient("PAT_002");
-                setHour(12);
-              }}
-              className={`p-3 rounded-lg text-left transition-all border ${
-                selectedPatient === "PAT_002"
-                  ? "bg-cyan-950/50 border-cyan-500 text-cyan-200"
-                  : "bg-slate-800/50 border-transparent text-slate-300 hover:bg-slate-800"
-              }`}
-            >
-              <div className="font-semibold text-sm">Ananya Deshmukh (PAT_002)</div>
-              <div className="text-xs text-emerald-400 mt-1">34F • Healthy Control Profile</div>
-            </button>
+            {COHORT_CARDS.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => {
+                  setIsSimulating(false);
+                  setSelectedPatient(c.id);
+                  setHour(c.defaultHour);
+                }}
+                className={`p-3 rounded-lg text-left transition-all border ${
+                  selectedPatient === c.id
+                    ? "bg-cyan-950/50 border-cyan-500 text-cyan-200"
+                    : "bg-slate-800/50 border-transparent text-slate-300 hover:bg-slate-800"
+                }`}
+              >
+                <div className="font-semibold text-xs">{c.name}</div>
+                <div className={`text-[11px] mt-0.5 ${c.badgeColor}`}>{c.subtitle}</div>
+              </button>
+            ))}
           </div>
 
           {twinData && simData && (
@@ -312,7 +423,7 @@ export default function VitalTwinsDashboard() {
           </div>
         </div>
 
-        {/* Right Area */}
+        {/* Right Area: Renders Doctor, Family Caregiver, or Patient Companion */}
         <div className="lg:col-span-3">
           {!twinData ? (
             <div className="flex items-center justify-center h-96 text-slate-400">
@@ -320,13 +431,67 @@ export default function VitalTwinsDashboard() {
             </div>
           ) : viewMode === "DOCTOR" ? (
             renderDoctorView(twinData)
+          ) : viewMode === "CAREGIVER" ? (
+            renderFamilyCaregiverView(twinData)
           ) : (
             renderPatientCompanionView(twinData)
           )}
         </div>
       </div>
 
-      {/* FHIR R4 Modal */}
+      {/* Modal 0: Smartwatch Health Connect / Apple HealthKit Bridge */}
+      {showWatchModal && twinData && (
+        <div className="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full p-5 space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+                <Watch className="h-5 w-5" />
+                Edge Wearable Ingestion Bridge (BLE / Health Connect)
+              </div>
+              <button onClick={() => setShowWatchModal(false)} className="text-slate-400 hover:text-white">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-2.5 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Connected Device:</span>
+                <span className="font-semibold text-emerald-300">
+                  Galaxy Watch 6 / Apple HealthKit Bridge
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Telemetry Protocol:</span>
+                <span className="font-mono text-cyan-300">REST Webhook + HL7 LOINC Stream</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Last Packet Sync:</span>
+                <span className="font-mono text-slate-200">{lastSyncText}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Live Payload Snapshot:</span>
+                <span className="font-mono text-amber-300">
+                  RHR {twinData.telemetry.heart_rate_bpm} bpm | HRV {twinData.telemetry.hrv_ms} ms | SpO2{" "}
+                  {twinData.telemetry.spo2_pct}%
+                </span>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={triggerWatchSync}
+                disabled={isSyncingWatch}
+                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5"
+              >
+                <RefreshCw className={`h-4 w-4 ${isSyncingWatch ? "animate-spin" : ""}`} />
+                {isSyncingWatch ? "Pulling Wrist Telemetry..." : "Force Instant Wrist Sync"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 1: HL7 FHIR R4 Inspector */}
       {showFhirModal && (
         <div className="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-3xl w-full max-h-[80vh] flex flex-col">
@@ -335,16 +500,190 @@ export default function VitalTwinsDashboard() {
                 <FileJson className="h-5 w-5" />
                 HL7 FHIR R4 Interoperability Payload (Patient + Observation + RiskAssessment)
               </div>
-              <button
-                onClick={() => setShowFhirModal(false)}
-                className="text-slate-400 hover:text-white"
-              >
+              <button onClick={() => setShowFhirModal(false)} className="text-slate-400 hover:text-white">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <pre className="p-4 text-xs font-mono text-emerald-300 overflow-y-auto bg-slate-950 flex-1">
               {JSON.stringify(fhirJson, null, 2)}
             </pre>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 2: Stateful Emergency Escalation Audit Trail */}
+      {showAuditModal && (
+        <div className="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-3xl w-full max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b border-slate-800">
+              <div className="flex items-center gap-2 text-rose-400 font-bold text-sm">
+                <BellRing className="h-5 w-5" />
+                Hospital Emergency Webhook & Pager Escalation Audit Log
+              </div>
+              <button onClick={() => setShowAuditModal(false)} className="text-slate-400 hover:text-white">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto space-y-3 flex-1">
+              {escalationLogs.length === 0 ? (
+                <div className="text-center text-slate-500 py-8 text-sm">
+                  No critical escalations triggered yet. Scrub a high-risk patient to RED status.
+                </div>
+              ) : (
+                escalationLogs.map((ev) => (
+                  <div
+                    key={ev.event_id}
+                    className="bg-slate-950 border border-slate-800 rounded-lg p-3.5 flex flex-wrap justify-between items-center gap-3"
+                  >
+                    <div className="space-y-1 text-xs max-w-xl">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-rose-400">{ev.event_id}</span>
+                        <span className="text-slate-500">• {ev.timestamp}</span>
+                      </div>
+                      <div className="text-slate-200 font-medium">{ev.message}</div>
+                      <div className="text-slate-400 text-[11px]">
+                        Target: {ev.dispatched_to} ({ev.channel})
+                      </div>
+                    </div>
+                    <div>
+                      {ev.acknowledged ? (
+                        <span className="px-3 py-1.5 rounded-lg bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-semibold flex items-center gap-1.5">
+                          <ClipboardCheck className="h-4 w-4" />
+                          Acked ({ev.acknowledged_at})
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleAcknowledge(ev.event_id)}
+                          className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold transition-all"
+                        >
+                          Acknowledge Pager
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 3: Printable Clinical Handoff & In-Silico Trial Report */}
+      {showReportModal && twinData && simData && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+          <div className="bg-white text-slate-900 rounded-xl max-w-3xl w-full max-h-[88vh] flex flex-col shadow-2xl">
+            <div className="flex justify-between items-center p-4 border-b border-slate-200 bg-slate-100 rounded-t-xl">
+              <div className="font-bold text-sm text-slate-800 flex items-center gap-2">
+                <FileText className="h-5 w-5 text-cyan-700" />
+                VitalTwins Official Clinical Handoff & In-Silico PK/PD Report
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="px-3 py-1.5 bg-cyan-700 hover:bg-cyan-600 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5"
+                >
+                  <Printer className="h-4 w-4" /> Print / Save as PDF
+                </button>
+                <button
+                  onClick={() => setShowReportModal(false)}
+                  className="text-slate-500 hover:text-slate-900 p-1"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-5 text-xs leading-relaxed">
+              <div className="flex justify-between items-start border-b border-slate-300 pb-4">
+                <div>
+                  <h2 className="text-lg font-extrabold text-slate-900">
+                    VITALTWINS CARDIOVASCULAR DIGITAL TWIN REPORT
+                  </h2>
+                  <p className="text-slate-500">
+                    HL7 FHIR R4 Compliant Decision Support Summary • Team Ctrl Win (PCCOE Pune)
+                  </p>
+                </div>
+                <div className="text-right font-mono">
+                  <div className="font-bold">Disposition: {twinData.clinical_status}</div>
+                  <div>Stream Offset: +{twinData.hour_offset}h / 47h</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 bg-slate-50 p-3.5 rounded-lg border border-slate-200">
+                <div>
+                  <div className="font-bold text-slate-700 uppercase mb-1">Patient Demographics & EHR</div>
+                  <div><strong>Name:</strong> {twinData.name} ({twinData.patient_id})</div>
+                  <div><strong>Age / Sex:</strong> {twinData.age} yrs / {twinData.gender}</div>
+                  <div><strong>Baseline BP & BMI:</strong> {twinData.ehr_summary.bp} mmHg | BMI {twinData.ehr_summary.bmi}</div>
+                  <div><strong>XGBoost Static Vulnerability:</strong> {twinData.baseline_ehr_risk}%</div>
+                </div>
+                <div>
+                  <div className="font-bold text-slate-700 uppercase mb-1">Live Wearable Telemetry</div>
+                  <div><strong>Resting Heart Rate (RHR):</strong> {twinData.telemetry.heart_rate_bpm} bpm</div>
+                  <div><strong>Heart Rate Variability (HRV):</strong> {twinData.telemetry.hrv_ms} ms</div>
+                  <div><strong>Blood Oxygen (SpO2):</strong> {twinData.telemetry.spo2_pct}%</div>
+                  <div><strong>Fused Digital Twin Risk:</strong> <strong>{twinData.fused_risk_score}%</strong></div>
+                </div>
+              </div>
+
+              <div>
+                <div className="font-bold text-slate-800 uppercase mb-2">
+                  1. Explainable AI (XAI) Risk Attribution Breakdown
+                </div>
+                <div className="border border-slate-200 rounded-lg divide-y divide-slate-200">
+                  {twinData.xai_breakdown.map((item, i) => (
+                    <div key={i} className="p-2.5 flex justify-between items-center">
+                      <div>
+                        <span className="font-semibold">{item.factor}</span>
+                        <span className="text-slate-500 ml-2">({item.clinical_detail})</span>
+                      </div>
+                      <span className="font-mono font-bold">{item.contribution_pct}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="font-bold text-slate-800 uppercase mb-2">
+                  2. In-Silico 12-Hour PK/PD Counterfactual Drug Trial Summary
+                </div>
+                <div className="bg-emerald-50 border border-emerald-300 p-3 rounded-lg mb-3">
+                  <div className="font-bold text-emerald-900">
+                    ★ AI Optimal Regimen: {simData.optimal_recommendation.drug_name}
+                  </div>
+                  <div className="text-emerald-800 mt-0.5">{simData.optimal_recommendation.rationale}</div>
+                </div>
+                <table className="w-full border-collapse border border-slate-300 text-left">
+                  <thead className="bg-slate-100">
+                    <tr>
+                      <th className="border border-slate-300 p-2">Candidate Regimen</th>
+                      <th className="border border-slate-300 p-2">12h Treated Risk</th>
+                      <th className="border border-slate-300 p-2">Risk Reduction</th>
+                      <th className="border border-slate-300 p-2">Min Simulated HR</th>
+                      <th className="border border-slate-300 p-2">Safety Verdict</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {simData.ranked_interventions.map((d) => (
+                      <tr key={d.drug_id}>
+                        <td className="border border-slate-300 p-2 font-semibold">{d.name}</td>
+                        <td className="border border-slate-300 p-2 font-mono">{d.final_12h_risk_pct}%</td>
+                        <td className="border border-slate-300 p-2 font-mono text-emerald-700 font-bold">
+                          -{d.absolute_risk_reduction_pct}%
+                        </td>
+                        <td className="border border-slate-300 p-2 font-mono">{d.min_simulated_hr_bpm} bpm</td>
+                        <td className="border border-slate-300 p-2">{d.safety_status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="border-t border-slate-300 pt-3 flex justify-between text-slate-500">
+                <span>Generated by VitalTwins Engine v3.5 (DPDP & HIPAA Sandbox Compliant)</span>
+                <span>Attending Cardiologist Signature: _______________________</span>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -360,7 +699,6 @@ export default function VitalTwinsDashboard() {
 
     return (
       <div className="flex flex-col gap-5">
-        {/* Patient Banner */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-wrap justify-between items-center gap-4">
           <div className="flex items-center gap-3.5">
             <div className="bg-slate-800 p-2.5 rounded-xl border border-slate-700">
@@ -397,7 +735,6 @@ export default function VitalTwinsDashboard() {
           </div>
         </div>
 
-        {/* Vitals Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
             <div className="text-xs text-slate-400 flex items-center gap-1.5 mb-1">
@@ -427,7 +764,6 @@ export default function VitalTwinsDashboard() {
           </div>
         </div>
 
-        {/* TRUE DIGITAL TWIN: IN-SILICO PK/PD VIRTUAL THERAPEUTICS LAB */}
         {simData && activeDrug && (
           <div className="bg-slate-900 border-2 border-cyan-500/40 rounded-xl p-5 space-y-4">
             <div className="flex flex-wrap justify-between items-start gap-4 border-b border-slate-800 pb-3">
@@ -437,7 +773,7 @@ export default function VitalTwinsDashboard() {
                   In-Silico PK/PD Shadow Twin Simulator (12-Hour Counterfactual Forecast)
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Tests virtual drug absorption (Bateman PK) & organ response (Hill PD) on this patient&apos;s digital replica before prescribing.
+                  Tests virtual drug absorption (Bateman PK) &amp; organ response (Hill PD) on this patient&apos;s digital replica before prescribing.
                 </p>
               </div>
               <div className="bg-emerald-950/60 border border-emerald-500/40 px-3 py-1.5 rounded-lg text-xs">
@@ -450,7 +786,6 @@ export default function VitalTwinsDashboard() {
               </div>
             </div>
 
-            {/* Candidate Drug Selector Tabs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
               {simData.ranked_interventions.map((d, idx) => {
                 const isSelected = d.drug_id === activeDrug.drug_id;
@@ -477,9 +812,7 @@ export default function VitalTwinsDashboard() {
               })}
             </div>
 
-            {/* Dual Counterfactual Trajectory Charts (SVG) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pt-1">
-              {/* Chart 1: Heart Rate Counterfactual (Untreated Red vs Treated Cyan) */}
               <div className="lg:col-span-2 bg-slate-950 border border-slate-800 rounded-lg p-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-xs font-semibold text-slate-300">
@@ -494,13 +827,9 @@ export default function VitalTwinsDashboard() {
                     </span>
                   </div>
                 </div>
-                {renderCounterfactualChart(
-                  simData.untreated_trajectory,
-                  activeDrug.trajectory
-                )}
+                {renderCounterfactualChart(simData.untreated_trajectory, activeDrug.trajectory)}
               </div>
 
-              {/* PK/PD Metrics & Plasma Curve Summary */}
               <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 flex flex-col justify-between space-y-3">
                 <div>
                   <div className="text-xs font-semibold text-slate-400 uppercase mb-2">
@@ -553,7 +882,6 @@ export default function VitalTwinsDashboard() {
           </div>
         )}
 
-        {/* Fusion Risk + Explainable AI (XAI) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col justify-between">
             <div>
@@ -609,22 +937,175 @@ export default function VitalTwinsDashboard() {
           </div>
         </div>
 
-        {/* Escalation Webhook Feed */}
         {data.escalation_triggered && (
-          <div className="bg-red-950/40 border border-red-500/60 rounded-xl p-4 flex items-start gap-3.5">
-            <BellRing className="h-6 w-6 text-red-400 shrink-0 mt-0.5 animate-ping" />
-            <div className="text-xs space-y-1">
-              <div className="font-bold text-red-200 uppercase tracking-wide">
-                Automated Emergency Escalation Triggered ({data.escalation_triggered.event_id})
+          <div className="bg-red-950/40 border border-red-500/60 rounded-xl p-4 flex items-start justify-between gap-3.5">
+            <div className="flex items-start gap-3.5">
+              <BellRing className="h-6 w-6 text-red-400 shrink-0 mt-0.5 animate-ping" />
+              <div className="text-xs space-y-1">
+                <div className="font-bold text-red-200 uppercase tracking-wide">
+                  Automated Emergency Escalation Triggered ({data.escalation_triggered.event_id})
+                </div>
+                <div className="text-red-100">{data.escalation_triggered.message}</div>
+                <div className="text-red-300/80 font-mono text-[11px]">
+                  Dispatched To: {data.escalation_triggered.dispatched_to} via{" "}
+                  {data.escalation_triggered.channel}
+                </div>
               </div>
-              <div className="text-red-100">{data.escalation_triggered.message}</div>
-              <div className="text-red-300/80 font-mono text-[11px]">
-                Dispatched To: {data.escalation_triggered.dispatched_to} via{" "}
-                {data.escalation_triggered.channel} at {data.escalation_triggered.timestamp}
+            </div>
+            <button
+              onClick={() => setShowAuditModal(true)}
+              className="px-3 py-1.5 bg-red-800/80 hover:bg-red-700 text-white rounded-lg text-xs font-semibold shrink-0"
+            >
+              Open Pager Log
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function renderFamilyCaregiverView(data: TwinState) {
+    const isRed = data.clinical_status === "RED";
+    const isYellow = data.clinical_status === "YELLOW";
+    const projectedChronicDrop = Math.min(
+      32,
+      Math.round(targetWeightLossKg * 2.4 + (dailyWalkMins / 15) * 3.5)
+    );
+    const projectedLongTermRisk = Math.max(8, Math.round(data.baseline_ehr_risk - projectedChronicDrop));
+
+    return (
+      <div className="flex flex-col gap-5">
+        {/* Traffic-Light Household Monitoring Banner */}
+        <div
+          className={`rounded-2xl p-6 border-2 flex flex-wrap justify-between items-center gap-4 ${
+            isRed
+              ? "bg-red-950/50 border-red-500 text-red-100"
+              : isYellow
+              ? "bg-amber-950/50 border-amber-500 text-amber-100"
+              : "bg-emerald-950/50 border-emerald-500 text-emerald-100"
+          }`}
+        >
+          <div className="space-y-1 max-w-xl">
+            <div className="text-xs uppercase font-bold tracking-wider flex items-center gap-2">
+              <Users className="h-4 w-4" /> Family Caregiver Remote Monitor • Home Node
+            </div>
+            <h2 className="text-2xl font-extrabold">
+              {isRed
+                ? `URGENT: ${data.name} Needs Immediate Check-In`
+                : isYellow
+                ? `Heads Up: ${data.name}'s Stress Markers Are Elevated`
+                : `${data.name} is Resting Comfortably & Stable`}
+            </h2>
+            <p className="text-xs opacity-90 leading-relaxed">
+              {isRed
+                ? "Smartwatch detected a sharp drop in heart recovery (HRV) and elevated resting pulse. Primary clinic has been auto-alerted."
+                : isYellow
+                ? "Mild fatigue detected on wrist sensor over the past few hours. Encourage hydration and rest."
+                : "All smartwatch vitals (Heart Rate, Recovery, Blood Oxygen) are within normal household baseline."}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => setShowAuditModal(true)}
+              className="px-4 py-2.5 rounded-xl bg-white text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg hover:bg-slate-200 transition-all"
+            >
+              <PhoneCall className="h-4 w-4 text-emerald-600" />
+              Request Doctor Tele-Check
+            </button>
+            <div className="text-[11px] font-mono text-center opacity-80">{lastSyncText}</div>
+          </div>
+        </div>
+
+        {/* Simple Household Vitals */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+            <div className="text-xs text-slate-400">Live Wrist Pulse</div>
+            <div className="text-2xl font-bold font-mono text-rose-400 mt-1">
+              {data.telemetry.heart_rate_bpm} bpm
+            </div>
+            <div className="text-[11px] text-slate-500 mt-1">Normal Household Range: 60–85 bpm</div>
+          </div>
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+            <div className="text-xs text-slate-400">Heart Stress Resilience (HRV)</div>
+            <div className="text-2xl font-bold font-mono text-cyan-400 mt-1">
+              {data.telemetry.hrv_ms} ms
+            </div>
+            <div className="text-[11px] text-slate-500 mt-1">
+              {"Higher (>50 ms) means calmer heart"}
+            </div>
+          </div>
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+            <div className="text-xs text-slate-400">Blood Oxygen Level</div>
+            <div className="text-2xl font-bold font-mono text-emerald-400 mt-1">
+              {data.telemetry.spo2_pct}%
+            </div>
+            <div className="text-[11px] text-slate-500 mt-1">Healthy Target: 95%–100%</div>
+          </div>
+        </div>
+
+        {/* Chronic 6-Month Lifestyle Habit Simulator for Family & Patient */}
+        <div className="bg-slate-900 border border-indigo-500/40 rounded-xl p-5 space-y-4">
+          <div className="flex flex-wrap justify-between items-center gap-2 border-b border-slate-800 pb-3">
+            <div>
+              <h3 className="text-sm font-bold text-indigo-300 flex items-center gap-2">
+                <TrendingDown className="h-5 w-5 text-indigo-400" />
+                6-Month Preventive Lifestyle Twin Simulator (Home Habit Planner)
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Simulate how gradual weight management and daily walking lower {data.name.split(" ")[0]}&apos;s long-term baseline cardiac risk.
+              </p>
+            </div>
+            <div className="bg-indigo-950/70 border border-indigo-500/40 px-3.5 py-2 rounded-lg text-right">
+              <div className="text-[10px] uppercase font-bold text-indigo-300">
+                6-Month Baseline Risk Projection
+              </div>
+              <div className="text-sm font-mono font-bold text-emerald-400">
+                {data.baseline_ehr_risk}% → {projectedLongTermRisk}% (-{projectedChronicDrop}% Drop)
               </div>
             </div>
           </div>
-        )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-1 text-xs">
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-slate-300 font-medium">Target 6-Month Weight Reduction:</span>
+                <span className="font-mono font-bold text-indigo-300">-{targetWeightLossKg} kg</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="10"
+                value={targetWeightLossKg}
+                onChange={(e) => setTargetWeightLossKg(parseInt(e.target.value))}
+                className="w-full accent-indigo-500 cursor-pointer"
+              />
+              <div className="text-[11px] text-slate-500">
+                Current BMI: {data.ehr_summary.bmi} → Simulated BMI:{" "}
+                {(data.ehr_summary.bmi - targetWeightLossKg * 0.34).toFixed(1)}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-slate-300 font-medium">Daily Brisk Walk / Yoga Routine:</span>
+                <span className="font-mono font-bold text-indigo-300">{dailyWalkMins} mins/day</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="60"
+                step="10"
+                value={dailyWalkMins}
+                onChange={(e) => setDailyWalkMins(parseInt(e.target.value))}
+                className="w-full accent-indigo-500 cursor-pointer"
+              />
+              <div className="text-[11px] text-slate-500">
+                Boosts baseline vagal HRV tone by +{Math.round(dailyWalkMins * 0.22)} ms over 24 weeks
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -653,7 +1134,6 @@ export default function VitalTwinsDashboard() {
 
     return (
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-40 overflow-visible">
-        {/* Safe Threshold Reference Lines */}
         <line
           x1={padX}
           y1={mapY(100)}
@@ -680,7 +1160,6 @@ export default function VitalTwinsDashboard() {
           60
         </text>
 
-        {/* Untreated Crash Line (Red) */}
         <polyline
           fill="none"
           stroke="#f43f5e"
@@ -689,7 +1168,6 @@ export default function VitalTwinsDashboard() {
           points={untreatedPoints}
         />
 
-        {/* Treated Shadow Twin Line (Cyan) */}
         <polyline
           fill="none"
           stroke="#22d3ee"
@@ -697,7 +1175,6 @@ export default function VitalTwinsDashboard() {
           points={treatedPoints}
         />
 
-        {/* Data Nodes */}
         {treated.map((pt) => (
           <g key={pt.hour_ahead}>
             <circle
