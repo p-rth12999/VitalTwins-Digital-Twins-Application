@@ -4,105 +4,156 @@ import pandas as pd
 
 np.random.seed(42)
 
-DATA_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+EHR_FILE = os.path.join(BASE_DIR, "synthetic_ehr.csv")
+STREAM_FILE = os.path.join(BASE_DIR, "wearable_stream.csv")
 
-def generate_ehr_data(num_patients=500):
-    patient_ids = [f"PAT_{i:03d}" for i in range(1, num_patients + 1)]
-    ages = np.random.randint(28, 78, size=num_patients)
-    genders = np.random.choice(["M", "F"], size=num_patients)
-    bmi = np.round(np.random.normal(26.5, 4.2, size=num_patients), 1)
-    
-    # Correlate blood pressure and cholesterol slightly with age and BMI
-    systolic_bp = np.round(100 + 0.5 * ages + 0.6 * bmi + np.random.normal(0, 12, num_patients)).astype(int)
-    diastolic_bp = np.round(65 + 0.2 * ages + 0.3 * bmi + np.random.normal(0, 8, num_patients)).astype(int)
-    cholesterol = np.round(150 + 0.8 * ages + np.random.normal(0, 30, num_patients)).astype(int)
-    
-    hypertension = ((systolic_bp > 140) | (diastolic_bp > 90)).astype(int)
-    diabetes = ((bmi > 29) & (ages > 45) | (np.random.rand(num_patients) < 0.18)).astype(int)
-    smoker = (np.random.rand(num_patients) < 0.22).astype(int)
+def generate_ehr_data(n_patients=500):
+    rows = []
+    for i in range(1, n_patients + 1):
+        pid = f"PAT_{i:03d}"
+        age = np.random.randint(25, 75)
+        gender = np.random.choice(["M", "F"])
+        bmi = round(np.random.uniform(19.0, 35.0), 1)
+        sys_bp = np.random.randint(105, 175)
+        dia_bp = np.random.randint(65, 110)
+        chol = np.random.randint(150, 290)
+        htn = 1 if sys_bp > 140 or np.random.rand() < 0.25 else 0
+        diab = 1 if bmi > 29 or np.random.rand() < 0.20 else 0
+        smoker = 1 if np.random.rand() < 0.22 else 0
 
-    # Calculate ground-truth baseline risk probability for training
-    risk_logit = (
-        -6.5
-        + 0.05 * ages
-        + 0.08 * (bmi - 25)
-        + 0.03 * (systolic_bp - 120)
-        + 0.01 * (cholesterol - 180)
-        + 1.1 * hypertension
-        + 0.9 * diabetes
-        + 0.7 * smoker
-    )
-    risk_prob = 1 / (1 + np.exp(-risk_logit))
-    high_risk_label = (risk_prob > 0.5).astype(int)
+        risk_score = (
+                (age > 55) * 2
+                + (bmi > 28) * 1
+                + (sys_bp > 145) * 2
+                + (chol > 230) * 1
+                + htn * 2
+                + diab * 2
+                + smoker * 1
+        )
+        high_risk = 1 if risk_score >= 5 else 0
 
-    df_ehr = pd.DataFrame({
-        "patient_id": patient_ids,
-        "name": [f"Patient {i}" for i in range(1, num_patients + 1)],
-        "age": ages,
-        "gender": genders,
-        "bmi": bmi,
-        "systolic_bp": systolic_bp,
-        "diastolic_bp": diastolic_bp,
-        "cholesterol_mg_dl": cholesterol,
-        "hypertension_history": hypertension,
-        "diabetes_history": diabetes,
-        "smoker": smoker,
-        "high_baseline_risk": high_risk_label
-    })
+        rows.append({
+            "patient_id": pid,
+            "name": f"Synthetic Patient {i}",
+            "age": age,
+            "gender": gender,
+            "bmi": bmi,
+            "systolic_bp": sys_bp,
+            "diastolic_bp": dia_bp,
+            "cholesterol_mg_dl": chol,
+            "hypertension_history": htn,
+            "diabetes_history": diab,
+            "smoker": smoker,
+            "high_baseline_risk": high_risk
+        })
 
-    # Force PAT_001 to be a realistic high-risk profile and PAT_002 to be low-risk for live demos
-    df_ehr.loc[0] = ["PAT_001", "Rajesh Sharma", 61, "M", 29.4, 152, 94, 238, 1, 1, 0, 1]
-    df_ehr.loc[1] = ["PAT_002", "Ananya Deshmukh", 34, "F", 22.8, 116, 76, 172, 0, 0, 0, 0]
+    df = pd.DataFrame(rows)
 
-    ehr_path = os.path.join(DATA_DIR, "synthetic_ehr.csv")
-    df_ehr.to_csv(ehr_path, index=False)
-    print(f"[+] Generated Static EHR dataset: {ehr_path} ({len(df_ehr)} patients)")
+    # Archetype 1: PAT_001 - Rajesh Sharma (61M, Severe Autonomic HRV Collapse)
+    df.loc[df["patient_id"] == "PAT_001", [
+        "name", "age", "gender", "bmi", "systolic_bp", "diastolic_bp",
+        "cholesterol_mg_dl", "hypertension_history", "diabetes_history", "smoker", "high_baseline_risk"
+    ]] = ["Rajesh Sharma", 61, "M", 29.4, 158, 96, 248, 1, 1, 0, 1]
+
+    # Archetype 2: PAT_002 - Ananya Deshmukh (34F, Healthy Control)
+    df.loc[df["patient_id"] == "PAT_002", [
+        "name", "age", "gender", "bmi", "systolic_bp", "diastolic_bp",
+        "cholesterol_mg_dl", "hypertension_history", "diabetes_history", "smoker", "high_baseline_risk"
+    ]] = ["Ananya Deshmukh", 34, "F", 21.8, 114, 74, 168, 0, 0, 0, 0]
+
+    # Archetype 3: PAT_003 - Sunita Mehta (58F, Post-MI Recovery with Nocturnal SpO2 Desaturation)
+    df.loc[df["patient_id"] == "PAT_003", [
+        "name", "age", "gender", "bmi", "systolic_bp", "diastolic_bp",
+        "cholesterol_mg_dl", "hypertension_history", "diabetes_history", "smoker", "high_baseline_risk"
+    ]] = ["Sunita Mehta", 58, "F", 27.6, 146, 90, 232, 1, 0, 0, 1]
+
+    # Archetype 4: PAT_004 - Vikram Malhotra (42M, Corporate Executive Sympathetic Tachycardia)
+    df.loc[df["patient_id"] == "PAT_004", [
+        "name", "age", "gender", "bmi", "systolic_bp", "diastolic_bp",
+        "cholesterol_mg_dl", "hypertension_history", "diabetes_history", "smoker", "high_baseline_risk"
+    ]] = ["Vikram Malhotra", 42, "M", 25.2, 134, 86, 205, 0, 0, 1, 0]
+
+    df.to_csv(EHR_FILE, index=False)
+    print(f"Generated {len(df)} EHR records -> {EHR_FILE}")
 
 
-def generate_wearable_stream(hours=48):
+def generate_wearable_stream():
     records = []
-
-    # 1. PAT_001: Anomaly trajectory (Degrades starting at hour 28)
-    for h in range(hours):
+    # 1. PAT_001: Rajesh Sharma (Progressive Autonomic Collapse after Hour 28)
+    for h in range(48):
         if h < 28:
-            rhr = np.random.normal(74, 2.5)
-            hrv = np.random.normal(52, 3.0)
-            spo2 = np.random.normal(97.5, 0.5)
+            hr = round(74 + np.random.normal(0, 2.2), 1)
+            hrv = round(52 + np.random.normal(0, 2.5), 1)
+            spo2 = round(97.2 + np.random.normal(0, 0.4), 1)
         else:
-            # Progressive autonomic nervous system stress before arrhythmia
-            progression = (h - 27) / (hours - 27)
-            rhr = 74 + (32 * progression) + np.random.normal(0, 3.5)
-            hrv = 52 - (26 * progression) + np.random.normal(0, 2.0)
-            spo2 = 97.5 - (3.2 * progression) + np.random.normal(0, 0.4)
-
+            progress = (h - 27) / 20.0
+            hr = round(76 + progress * 34 + np.random.normal(0, 1.5), 1)
+            hrv = round(50 - progress * 26 + np.random.normal(0, 1.2), 1)
+            spo2 = round(97.0 - progress * 4.2 + np.random.normal(0, 0.3), 1)
         records.append({
             "patient_id": "PAT_001",
             "hour_offset": h,
-            "heart_rate_bpm": round(max(55, min(145, rhr)), 1),
-            "hrv_ms": round(max(15, min(90, hrv)), 1),
-            "spo2_pct": round(max(88, min(100, spo2)), 1),
-            "step_count": int(np.random.choice([0, 120, 340, 50], p=[0.4, 0.3, 0.2, 0.1]))
+            "heart_rate_bpm": max(55.0, hr),
+            "hrv_ms": max(18.0, hrv),
+            "spo2_pct": min(100.0, max(88.0, spo2)),
+            "step_count": int(np.random.randint(20, 450))
         })
 
-    # 2. PAT_002: Stable healthy trajectory
-    for h in range(hours):
-        rhr = np.random.normal(66, 2.0)
-        hrv = np.random.normal(68, 3.5)
-        spo2 = np.random.normal(98.5, 0.4)
-
+    # 2. PAT_002: Ananya Deshmukh (Healthy Stable Baseline)
+    for h in range(48):
         records.append({
             "patient_id": "PAT_002",
             "hour_offset": h,
-            "heart_rate_bpm": round(rhr, 1),
-            "hrv_ms": round(hrv, 1),
-            "spo2_pct": round(min(100, spo2), 1),
-            "step_count": int(np.random.choice([0, 250, 600, 110], p=[0.3, 0.3, 0.3, 0.1]))
+            "heart_rate_bpm": round(66 + np.random.normal(0, 2.0), 1),
+            "hrv_ms": round(68 + np.random.normal(0, 3.0), 1),
+            "spo2_pct": round(98.5 + np.random.normal(0, 0.3), 1),
+            "step_count": int(np.random.randint(100, 900))
+        })
+
+    # 3. PAT_003: Sunita Mehta (Nocturnal Hypoxic Drift & Post-MI Instability Hours 30-45)
+    for h in range(48):
+        if 30 <= h <= 45:
+            depth = (h - 29) / 16.0
+            hr = round(80 + depth * 18 + np.random.normal(0, 1.5), 1)
+            hrv = round(46 - depth * 16 + np.random.normal(0, 1.2), 1)
+            spo2 = round(95.5 - depth * 5.2 + np.random.normal(0, 0.3), 1)
+        else:
+            hr = round(76 + np.random.normal(0, 2.0), 1)
+            hrv = round(48 + np.random.normal(0, 2.0), 1)
+            spo2 = round(96.4 + np.random.normal(0, 0.4), 1)
+        records.append({
+            "patient_id": "PAT_003",
+            "hour_offset": h,
+            "heart_rate_bpm": hr,
+            "hrv_ms": hrv,
+            "spo2_pct": min(100.0, max(88.5, spo2)),
+            "step_count": int(np.random.randint(10, 300))
+        })
+
+    # 4. PAT_004: Vikram Malhotra (Acute Sympathetic Tachycardia Spike Hours 18-38)
+    for h in range(48):
+        if 18 <= h <= 38:
+            spike = np.sin(((h - 18) / 20.0) * np.pi)
+            hr = round(78 + spike * 36 + np.random.normal(0, 1.8), 1)
+            hrv = round(54 - spike * 23 + np.random.normal(0, 1.5), 1)
+            spo2 = round(97.4 - spike * 1.2 + np.random.normal(0, 0.3), 1)
+        else:
+            hr = round(74 + np.random.normal(0, 2.0), 1)
+            hrv = round(55 + np.random.normal(0, 2.2), 1)
+            spo2 = round(97.8 + np.random.normal(0, 0.3), 1)
+        records.append({
+            "patient_id": "PAT_004",
+            "hour_offset": h,
+            "heart_rate_bpm": hr,
+            "hrv_ms": hrv,
+            "spo2_pct": min(100.0, spo2),
+            "step_count": int(np.random.randint(50, 750))
         })
 
     df_stream = pd.DataFrame(records)
-    stream_path = os.path.join(DATA_DIR, "wearable_stream.csv")
-    df_stream.to_csv(stream_path, index=False)
-    print(f"[+] Generated Dynamic Wearable dataset: {stream_path} ({len(df_stream)} hourly records)")
+    df_stream.to_csv(STREAM_FILE, index=False)
+    print(f"Generated {len(df_stream)} wearable stream rows -> {STREAM_FILE}")
 
 
 if __name__ == "__main__":

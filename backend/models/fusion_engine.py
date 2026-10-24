@@ -150,17 +150,19 @@ def evaluate_digital_twin_state(patient_id: str, hour_offset: int):
             "Take 5 slow, deep breaths (4s inhale, 6s exhale)",
             "Keep your phone nearby — Clinic Care Team has been notified"
         ]
-        
+
+        # Inside evaluate_digital_twin_state(), update escalation_event dict:
         escalation_event = {
             "event_id": f"ESC-{patient_id}-H{hour_offset}",
             "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
             "patient_id": patient_id,
-            "patient_name": p_data["name"],
+            "patient_name": str(p_data["name"]),
             "hour_offset": hour_offset,
             "risk_score": round(fused_risk_score * 100, 1),
             "dispatched_to": "On-Call Cardiologist (Dr. V. Nair) & Emergency Contact",
             "channel": "Automated WhatsApp / Hospital Pager Webhook",
-            "message": f"URGENT RED FLAG: {p_data['name']} ({patient_id}) Fused Risk at {round(fused_risk_score*100, 1)}% (HR: {hr} bpm, HRV: {hrv} ms, SpO2: {spo2}%)."
+            "message": f"URGENT RED FLAG: {p_data['name']} ({patient_id}) Fused Risk at {round(fused_risk_score*100, 1)}% (HR: {hr} bpm, HRV: {hrv} ms, SpO2: {spo2}%).",
+            "acknowledged": False
         }
         if not any(e["event_id"] == escalation_event["event_id"] for e in escalation_audit_log):
             escalation_audit_log.insert(0, escalation_event)
@@ -427,3 +429,12 @@ def generate_fhir_r4_bundle(patient_id: str, hour_offset: int):
             }
         ]
     }
+def acknowledge_escalation_event(event_id: str):
+    """Marks an emergency escalation webhook event as acknowledged by the on-call cardiologist."""
+    for event in escalation_audit_log:
+        if event["event_id"] == event_id:
+            event["acknowledged"] = True
+            event["acknowledged_at"] = datetime.now(timezone.utc).strftime("%H:%M:%S UTC")
+            return {"status": "acknowledged", "event": event}
+    return {"error": "Event not found"}
+

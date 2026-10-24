@@ -163,6 +163,7 @@ export default function VitalTwinsDashboard() {
   const [showWatchModal, setShowWatchModal] = useState(false);
   const [isSyncingWatch, setIsSyncingWatch] = useState(false);
   const [lastSyncText, setLastSyncText] = useState("Synced 12s ago via Health Connect");
+  const [refreshTick, setRefreshTick] = useState(0);
 
   // Chronic Lifestyle Simulator state (Caregiver / Patient)
   const [targetWeightLossKg, setTargetWeightLossKg] = useState(4);
@@ -174,27 +175,6 @@ export default function VitalTwinsDashboard() {
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [escalationLogs, setEscalationLogs] = useState<EscalationEvent[]>([]);
   const [showReportModal, setShowReportModal] = useState(false);
-
-  const fetchTwinAndSim = async (pid: string, h: number) => {
-    try {
-      const [twinRes, simRes, escRes] = await Promise.all([
-        fetch(`http://127.0.0.1:8000/api/twin/${pid}/${h}`),
-        fetch(`http://127.0.0.1:8000/api/simulate/${pid}/${h}`),
-        fetch(`http://127.0.0.1:8000/api/escalations`)
-      ]);
-      const tJson = await twinRes.json();
-      const sJson: InSilicoResponse = await simRes.json();
-      const eJson = await escRes.json();
-      setTwinData(tJson);
-      setSimData(sJson);
-      setEscalationLogs(eJson.escalations || []);
-      if (sJson?.optimal_recommendation?.drug_id) {
-        setSelectedDrugId(sJson.optimal_recommendation.drug_id);
-      }
-    } catch (err) {
-      console.error("Failed to connect to VitalTwins backend:", err);
-    }
-  };
 
   const fetchFhirBundle = async () => {
     try {
@@ -225,13 +205,40 @@ export default function VitalTwinsDashboard() {
     setTimeout(() => {
       setIsSyncingWatch(false);
       setLastSyncText("Just now • BLE Packet Verified");
-      fetchTwinAndSim(selectedPatient, hour);
+      setRefreshTick((t) => t + 1);
     }, 900);
   };
 
   useEffect(() => {
-    fetchTwinAndSim(selectedPatient, hour);
-  }, [selectedPatient, hour]);
+    let ignore = false;
+    async function loadTwinData() {
+      try {
+        const [twinRes, simRes, escRes] = await Promise.all([
+          fetch(`http://127.0.0.1:8000/api/twin/${selectedPatient}/${hour}`),
+          fetch(`http://127.0.0.1:8000/api/simulate/${selectedPatient}/${hour}`),
+          fetch(`http://127.0.0.1:8000/api/escalations`)
+        ]);
+        const tJson = await twinRes.json();
+        const sJson: InSilicoResponse = await simRes.json();
+        const eJson = await escRes.json();
+
+        if (!ignore) {
+          setTwinData(tJson);
+          setSimData(sJson);
+          setEscalationLogs(eJson.escalations || []);
+          if (sJson?.optimal_recommendation?.drug_id) {
+            setSelectedDrugId(sJson.optimal_recommendation.drug_id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to connect to VitalTwins backend:", err);
+      }
+    }
+    loadTwinData();
+    return () => {
+      ignore = true;
+    };
+  }, [selectedPatient, hour, refreshTick]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -518,7 +525,7 @@ export default function VitalTwinsDashboard() {
             <div className="flex justify-between items-center p-4 border-b border-slate-800">
               <div className="flex items-center gap-2 text-rose-400 font-bold text-sm">
                 <BellRing className="h-5 w-5" />
-                Hospital Emergency Webhook & Pager Escalation Audit Log
+                Hospital Emergency Webhook &amp; Pager Escalation Audit Log
               </div>
               <button onClick={() => setShowAuditModal(false)} className="text-slate-400 hover:text-white">
                 <X className="h-5 w-5" />
@@ -575,7 +582,7 @@ export default function VitalTwinsDashboard() {
             <div className="flex justify-between items-center p-4 border-b border-slate-200 bg-slate-100 rounded-t-xl">
               <div className="font-bold text-sm text-slate-800 flex items-center gap-2">
                 <FileText className="h-5 w-5 text-cyan-700" />
-                VitalTwins Official Clinical Handoff & In-Silico PK/PD Report
+                VitalTwins Official Clinical Handoff &amp; In-Silico PK/PD Report
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -611,10 +618,10 @@ export default function VitalTwinsDashboard() {
 
               <div className="grid grid-cols-2 gap-4 bg-slate-50 p-3.5 rounded-lg border border-slate-200">
                 <div>
-                  <div className="font-bold text-slate-700 uppercase mb-1">Patient Demographics & EHR</div>
+                  <div className="font-bold text-slate-700 uppercase mb-1">Patient Demographics &amp; EHR</div>
                   <div><strong>Name:</strong> {twinData.name} ({twinData.patient_id})</div>
                   <div><strong>Age / Sex:</strong> {twinData.age} yrs / {twinData.gender}</div>
-                  <div><strong>Baseline BP & BMI:</strong> {twinData.ehr_summary.bp} mmHg | BMI {twinData.ehr_summary.bmi}</div>
+                  <div><strong>Baseline BP &amp; BMI:</strong> {twinData.ehr_summary.bp} mmHg | BMI {twinData.ehr_summary.bmi}</div>
                   <div><strong>XGBoost Static Vulnerability:</strong> {twinData.baseline_ehr_risk}%</div>
                 </div>
                 <div>
@@ -680,7 +687,7 @@ export default function VitalTwinsDashboard() {
               </div>
 
               <div className="border-t border-slate-300 pt-3 flex justify-between text-slate-500">
-                <span>Generated by VitalTwins Engine v3.5 (DPDP & HIPAA Sandbox Compliant)</span>
+                <span>Generated by VitalTwins Engine v3.5 (DPDP &amp; HIPAA Sandbox Compliant)</span>
                 <span>Attending Cardiologist Signature: _______________________</span>
               </div>
             </div>

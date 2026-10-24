@@ -8,6 +8,7 @@ from backend.models.fusion_engine import (
     evaluate_digital_twin_state,
     simulate_in_silico_interventions,
     generate_fhir_r4_bundle,
+    acknowledge_escalation_event,
     escalation_audit_log,
     df_ehr,
     df_stream
@@ -16,7 +17,7 @@ from backend.models.fusion_engine import (
 app = FastAPI(
     title="VitalTwins API",
     description="Mechanistic PK/PD + ML Predictive Cardiovascular Digital Twin Engine",
-    version="3.0.0"
+    version="3.5.0"
 )
 
 app.add_middleware(
@@ -29,11 +30,11 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"status": "online", "system": "VitalTwins Mechanistic PK/PD API v3.0"}
+    return {"status": "online", "system": "VitalTwins Mechanistic PK/PD API v3.5"}
 
 @app.get("/api/patients")
 def get_all_patients():
-    patients = df_ehr[["patient_id", "name", "age", "gender", "high_baseline_risk"]].to_dict(orient="records")
+    patients = df_ehr.head(4)[["patient_id", "name", "age", "gender", "high_baseline_risk"]].to_dict(orient="records")
     return {"patients": patients}
 
 @app.get("/api/twin/{patient_id}/{hour_offset}")
@@ -42,7 +43,6 @@ def get_twin_state(patient_id: str, hour_offset: int):
 
 @app.get("/api/simulate/{patient_id}/{hour_offset}")
 def get_in_silico_simulation(patient_id: str, hour_offset: int):
-    """Runs 12-hour counterfactual PK/PD drug simulations on the patient's Shadow Twin."""
     return simulate_in_silico_interventions(patient_id, hour_offset)
 
 @app.get("/api/fhir/{patient_id}/{hour_offset}")
@@ -51,7 +51,11 @@ def get_fhir_bundle(patient_id: str, hour_offset: int):
 
 @app.get("/api/escalations")
 def get_escalation_logs():
-    return {"escalations": escalation_audit_log[:10]}
+    return {"escalations": escalation_audit_log[:20]}
+
+@app.post("/api/escalations/ack/{event_id}")
+def ack_escalation(event_id: str):
+    return acknowledge_escalation_event(event_id)
 
 @app.get("/api/stream/{patient_id}")
 def get_full_stream(patient_id: str):
