@@ -1,4 +1,4 @@
-# 🫀 VitalTwins: Mechanistic PK/PD & Multimodal Predictive Cardiovascular Digital Twin
+# 🫀 VitalTwins: Tri-Node Mechanistic PK/PD & Multimodal Predictive Cardiovascular Digital Twin
 **Happiest Health Digital Twin Challenge 2026 — Reimagining and Reforming Healthcare in India Summit, Bengaluru**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](https://opensource.org/licenses/MIT)
@@ -18,41 +18,42 @@
 ---
 
 ## 🎯 2. Project Title
-**VitalTwins:** A Tri-Node Multimodal Patient Digital Twin Ecosystem Integrating Machine Learning Risk Prediction with Mechanistic Pharmacokinetic/Pharmacodynamic (PK/PD) *In-Silico* Drug Trials, Family Caregiver Monitoring, Explainable AI (XAI), and HL7 FHIR R4 Interoperability.
+**VitalTwins:** A Tri-Node Multimodal Patient Digital Twin Ecosystem Integrating Machine Learning Risk Prediction with Mechanistic Pharmacokinetic/Pharmacodynamic (PK/PD) *In-Silico* Drug Trials, Family Caregiver Monitoring, Explainable AI (XAI), HL7 FHIR R4 Interoperability, and P4 Participatory Care.
 
 ---
 
 ## 🚨 3. Problem Statement
 Cardiovascular disease (CVD) is the leading cause of mortality in India, increasingly affecting adults aged 25–65 due to silent progression of hypertension, diabetes, and autonomic stress. Current clinical care in India is fundamentally **reactive**:
 1. **Fragmented Data Silos:** Static Electronic Health Records (EHRs—blood pressure history, lipid profiles, comorbidities) sit isolated in hospital databases, completely disconnected from continuous physiological signals captured by consumer wearables.
-2. **Missed Prodromal Windows & Household Blind Spots:** Subtle autonomic nervous system degradations—such as progressive drops in Heart Rate Variability (HRV), resting tachycardia spikes, and mild nocturnal $\text{SpO}_2$ desaturation—occur **12 to 48 hours before** an acute arrhythmic event, but family members at home have no simplified way to monitor an elderly parent without deciphering complex medical charts.
+2. **Missed Prodromal Windows & Household Blind Spots:** Subtle autonomic nervous system degradations—such as progressive drops in Heart Rate Variability (HRV), resting tachycardia spikes, and mild nocturnal $\text{SpO}_2$ desaturation—occur **12 to 48 hours before** an acute arrhythmic event (e.g., Atrial Fibrillation or Ventricular Tachycardia), yet go unnoticed until emergency hospitalization is required, and family caregivers at home lack a simplified way to monitor elderly parents remotely.
 3. **Trial-and-Error Prescribing & Black-Box AI Distrust:** Clinicians hesitate to adopt black-box AI triage alerts that fail to explain *which* physiological factor triggered the alarm, and lack a safe, patient-specific virtual sandbox to test how antiarrhythmic or beta-blocker dosages will affect a patient's heart rate before writing a real prescription.
 
 ---
 
 ## 🏥 4. Healthcare Use Case & Ground-Level Tri-Node Ecosystem
-**VitalTwins** bridges the gap between the patient's wrist, their family household, and the hospital cardiologist through a **Tri-Node Deployment Architecture**:
+**VitalTwins** transitions cardiac care from reactive emergency management to proactive, predictive, and simulated intervention by connecting the patient's wrist, their family household, and the hospital cardiologist across a **Tri-Node Deployment Architecture**:
 
-1. **Node 1 — The Edge Wearable Ingestion Bridge (Wrist-to-Cloud):**
-   - Ingests continuous hourly biometric packets ($\text{RHR}$, $\text{HRV}$, $\text{SpO}_2$, step activity) via a simulated **Google Health Connect / Apple HealthKit BLE Bridge** and fuses them with static EHR vulnerability.
+1. **Node 1 — The Edge Wearable Ingestion Bridge & P4 Companion (Patient Level):**
+   - **Smartwatch Bridge:** Synchronizes hourly biometric packets ($\text{RHR}$, $\text{HRV}$, $\text{SpO}_2$, activity) via a simulated **Google Health Connect / Apple HealthKit BLE Bridge** and fuses them with static EHR baseline vulnerability.
+   - **P4 Participatory Patient Companion:** Translates dense clinical telemetry into calm, non-alarmist breathing and rest guidance on the patient's mobile view without inducing panic-driven tachycardia.
 2. **Node 2 — Family Caregiver Home Monitor & 6-Month Habit Simulator (Household Level):**
-   - Empowering Indian households where elderly cardiac care is family-driven: provides relatives with a jargon-free **"Traffic-Light" Remote Monitor** (Green = Comfortable, Yellow = Elevated Stress, Red = Immediate Check-In) alongside an interactive **6-Month Preventive Lifestyle Twin Simulator** showing how gradual weight reduction and daily walking lower baseline cardiac vulnerability.
+   - Built for Indian households where elderly cardiac care is family-driven: provides relatives with a jargon-free **"Traffic-Light" Remote Monitor** (**GREEN** = Stable, **YELLOW** = Elevated Stress, **RED** = Immediate Check-In) with one-click doctor tele-check requests.
+   - **6-Month Preventive Lifestyle Twin Simulator:** Allows families to simulate how gradual weight reduction and daily brisk walking/yoga lower the patient's long-term baseline cardiovascular risk.
 3. **Node 3 — Doctor Command Center & In-Silico PK/PD Drug Lab (Clinical Level):**
-   - **In-Silico PK/PD Shadow Twin Drug Simulator:** Spawns four parallel virtual clones of the patient to simulate 12-hour counterfactual trajectories under candidate medications (**Metoprolol 25mg**, **Metoprolol 50mg**, **Ivabradine 5mg**, **Amiodarone 200mg**), automatically ranking the safest drug while flagging **iatrogenic bradycardia risks ($<55\text{ bpm}$)**.
-   - **Explainable Clinical Decision Handoff (XAI) & Printable PDF Chart:** Decomposes exact percentage risk drivers and exports a formal, printable **Clinical Handoff PDF Report** and **HL7 FHIR R4 Bundle**.
-   - **Stateful Emergency Escalation Audit Trail:** Fires automated pager/WhatsApp webhooks to the on-call cardiologist with real-time acknowledgment tracking.
-   - **P4 Participatory Patient Companion:** Translates alerts into calm, non-alarmist breathing and rest guidance on the patient's mobile view.
+   - **In-Silico PK/PD Shadow Twin Drug Simulator:** Spawns four parallel virtual clones of the patient to simulate 12-hour counterfactual physiological trajectories under candidate medications (**Metoprolol 25mg**, **Metoprolol 50mg**, **Ivabradine 5mg**, **Amiodarone 200mg**), automatically ranking the safest drug while flagging **iatrogenic bradycardia risks ($<55\text{ bpm}$)**.
+   - **Explainable Clinical Decision Handoff (XAI) & Printable Clinical PDF:** Breaks down exact percentage risk drivers and generates an official, printable **Clinical Handoff & In-Silico Trial PDF Report** with an attending cardiologist sign-off block.
+   - **Stateful Emergency Escalation Audit Trail:** Automatically dispatches pager/WhatsApp webhooks to the on-call cardiologist the moment a twin crosses into `RED` status, complete with interactive **"Acknowledge Pager"** timestamp verification.
 
 ---
 
 ## 🛠️ 5. Technical Stack
 | Layer | Technologies Used | Purpose |
 | :--- | :--- | :--- |
-| **Frontend UI Dashboard** | Next.js (App Router), React, TypeScript, Tailwind CSS, Lucide Icons, Custom SVG Charting | Tri-mode UI (Doctor Command Center, Family Caregiver Monitor & P4 Patient Companion), Printable PDF Report Generator, and FHIR JSON Inspector |
-| **Backend API & Twin Engine** | Python 3, FastAPI, Uvicorn, Pydantic | Low-latency REST API serving synchronized Digital Twin states, 12h PK/PD differential simulations, XAI attributions, and stateful escalation audit logs |
+| **Frontend UI Dashboard** | Next.js (App Router), React, TypeScript, Tailwind CSS, Lucide Icons, Custom SVG Charting | Tri-mode UI (Doctor Command Center, Family Caregiver Monitor & P4 Patient Companion), Printable Clinical PDF Generator, Smartwatch Bridge Modal, and FHIR JSON Viewer |
+| **Backend API & Twin Engine** | Python 3, FastAPI, Uvicorn, Pydantic | Low-latency REST API serving synchronized Digital Twin states, 12h PK/PD differential simulations, XAI attributions, and stateful escalation acknowledgment logs |
 | **AI / Machine Learning & Physics** | XGBoost (`xgboost`), Scikit-Learn (`scikit-learn`), Bateman PK & Hill PD Mechanistic Models | Static EHR baseline risk probability modeling fused with dynamic time-series telemetry penalties and personalized pharmacokinetic/pharmacodynamic equations |
 | **Healthcare Interoperability** | HL7 FHIR R4 Standard (`Bundle`, `Patient`, `Observation`, `RiskAssessment`) | Standardized hospital EHR export using LOINC physiological coding (`8867-4`, `80404-7`, `59408-5`) |
-| **Sandbox Data Generation** | Custom Synthetic Physiological & EHR Generator (DPDP Act & HIPAA Safe) | Generates 500 synthetic Indian patient EHR cohorts and 4 distinct 48-hour clinical wearable archetypes |
+| **Sandbox Data Generation** | Custom Synthetic Physiological & EHR Generator (DPDP Act & HIPAA Safe) | Generates 500 synthetic Indian patient EHR cohorts and 4 distinct 48-hour clinical wearable degradation archetypes |
 
 ---
 
@@ -67,11 +68,11 @@ To comply strictly with the **DPDP Act** and **HIPAA** sandbox guidelines, Vital
    - **Validation Metrics:** Achieves **94.00% Validation Accuracy** and **0.995 ROC-AUC** on the held-out synthetic test split.
 
 2. **Stream 2 — Dynamic / Real-Time Wearable Telemetry (`backend/data/wearable_stream.csv`):**
-   - **Time-Series Horizon:** 48-hour continuous hourly stream across **4 Benchmarking Clinical Personas**:
-     - **`PAT_001` (Rajesh Sharma, 61M):** Progressive autonomic collapse starting at Hour +28 (HRV drops $>35\%$ down to $26\text{ ms}$, RHR spikes $>105\text{ bpm}$).
-     - **`PAT_002` (Ananya Deshmukh, 34F):** Healthy control profile with stable vagal tone ($\text{HRV} \sim 68\text{ ms}$).
-     - **`PAT_003` (Sunita Mehta, 58F):** Post-Myocardial Infarction recovery profile exhibiting nocturnal hypoxic $\text{SpO}_2$ drift ($<91\%$) between Hours 30–45.
-     - **`PAT_004` (Vikram Malhotra, 42M):** High-stress corporate executive exhibiting acute sympathetic tachycardia spikes ($>110\text{ bpm}$) between Hours 18–38.
+   - **Time-Series Horizon:** 48-hour continuous hourly stream mimicking Apple HealthKit / Google Health Connect smartwatches across **4 Benchmarking Clinical Archetypes**:
+     - **`PAT_001` (Rajesh Sharma, 61M — Severe Autonomic Collapse):** Models prodromal vagal withdrawal starting at Hour +28, where HRV drops by $>35\%$ (from $\sim 52\text{ ms}$ to $<26\text{ ms}$) while RHR spikes above $105\text{ bpm}$ and $\text{SpO}_2$ drifts below $94\%$.
+     - **`PAT_002` (Ananya Deshmukh, 34F — Healthy Control):** Stable autonomic baseline ($\text{RHR} \sim 66\text{ bpm}$, $\text{HRV} \sim 68\text{ ms}$, $\text{SpO}_2 \sim 98.5\%$).
+     - **`PAT_003` (Sunita Mehta, 58F — Post-MI Nocturnal Hypoxia):** Post-Myocardial Infarction recovery profile exhibiting nocturnal $\text{SpO}_2$ desaturation ($<91\%$) and moderate HRV dip between Hours 30–45.
+     - **`PAT_004` (Vikram Malhotra, 42M — Sympathetic Stress Tachycardia):** High-stress corporate executive profile with acute sympathetic heart rate surges ($>110\text{ bpm}$) between Hours 18–38.
 
 ### 6.2 Mathematical Formulation of the Multimodal Fusion Engine
 At any given hour offset $t$, the Digital Twin state $S(t)$ fuses static clinical vulnerability with real-time physiological stress penalties:
@@ -124,7 +125,7 @@ flowchart TD
     end
 
     subgraph Stream2 ["2. Dynamic Real-Time Stream (Edge Wearable Bridge)"]
-        C[("48-Hour Smartwatch Stream\n(Hourly RHR, HRV ms, SpO2 %, Steps)")]
+        C[("48-Hour Smartwatch Stream\n(4 Archetypes: RHR, HRV ms, SpO2 %, Steps)")]
         D["Temporal Stress Penalty Evaluator\n(Autonomic HRV Drop & Hypoxic Drift)"]
         C --> D
     end
@@ -135,12 +136,12 @@ flowchart TD
     E --> F["Explainable AI (XAI) Attribution\n(% Driver Breakdown)"]
     E --> G["Disposition Risk Classifier\n(GREEN / YELLOW / RED)"]
     E --> L["In-Silico PK/PD Shadow Twin Lab\n(12h Bateman PK + Hill PD Drug Trial)"]
-    E --> H["HL7 FHIR R4 & Printable PDF Report\n(Hospital EHR Interoperability)"]
+    E --> H["HL7 FHIR R4 & Printable Clinical PDF\n(Patient + LOINC Observation + RiskAssessment)"]
 
-    G -->|Status == RED| I["Stateful Escalation Audit Log\n(On-Call Cardiologist Pager Webhook)"]
-    G --> J["Node 3: Doctor Command Center UI"]
+    G -->|Status == RED| I["Stateful Escalation Audit Log\n(Cardiologist Pager Webhook & Ack)"]
+    G --> J["Node 3: Doctor Command Center UI\n(Next.js Clinical Dashboard)"]
     G --> M["Node 2: Family Caregiver Home Monitor\n(Traffic-Light & 6M Habit Simulator)"]
-    G --> K["Node 1: P4 Patient Companion UI"]
+    G --> K["Node 1: P4 Participatory Companion UI\n(Patient-Facing Actionable Guidance)"]
     F --> J
     L --> J
     H --> J
@@ -149,16 +150,16 @@ flowchart TD
 
 ---
 
-## 🎥 8. 15–20 Minute Prototype Demonstration Video (Unlisted YouTube)
+## 🎥 8. Prototype Demonstration Video (YouTube)
 
 > 🔗 **Watch the Full Technical Explanation & Live Prototype Demo:**  
-> **[▶️ Click Here to Watch on YouTube (Unlisted Link — Placeholder)](https://youtu.be/YOUR_UNLISTED_VIDEO_ID_HERE)**
+> **[▶️ Click Here to Watch on YouTube](https://youtu.be/d6JHxDK8TsQ)**
 
 **Video Walkthrough Timestamps:**
 - `00:00 – 02:30` : Problem Statement, Clinical Gap in India, and Tri-Node Digital Twin Architecture
-- `02:30 – 05:00` : DPDP-Compliant Sandbox Data Synthesis (4 Archetypes) & XGBoost Baseline Training
+- `02:30 – 05:00` : DPDP-Compliant Sandbox Data Synthesis (4 Clinical Archetypes) & XGBoost Baseline Training
 - `05:00 – 08:30` : Multimodal Fusion Engine, Explainable AI (XAI), and Mechanistic PK/PD Differential Equations (`fusion_engine.py`)
-- `08:30 – 13:00` : Live Clinical Dashboard Demo (48h Telemetry Scrubbing, Escalation Pager Log & 12h In-Silico PK/PD Drug Trials)
+- `08:30 – 13:00` : Live Clinical Dashboard Demo (Smartwatch Sync Bridge, 48h Telemetry Scrubbing, Escalation Pager Log & 12h In-Silico PK/PD Drug Trials)
 - `13:00 – 16:00` : Family Caregiver Mode (6-Month Habit Simulator), Printable Clinical PDF Report, HL7 FHIR R4 Export & P4 Companion View
 
 ---
@@ -180,8 +181,8 @@ All project details, mathematical formulations, system architecture diagrams, an
 ### Step 1: Clone the Repository & Launch the FastAPI Backend
 
 ```bash
-git clone [https://github.com/YOUR_GITHUB_USERNAME/Ctrl-Win_PCCOE.git](https://github.com/YOUR_GITHUB_USERNAME/Ctrl-Win_PCCOE.git)
-cd Ctrl-Win_PCCOE
+git clone [https://github.com/p-rth12999/VitalTwins-Digital-Twins-Application.git](https://github.com/p-rth12999/VitalTwins-Digital-Twins-Application.git)
+cd VitalTwins-Digital-Twins-Application
 
 # Create and activate virtual environment
 python -m venv venv
@@ -191,7 +192,7 @@ python -m venv venv
 # Install dependencies
 pip install -r backend/requirements.txt
 
-# Generate synthetic sandbox datasets and train the XGBoost model
+# Generate synthetic sandbox datasets (4 archetypes) and train the XGBoost model
 python backend/data/generate_sandbox_data.py
 python backend/models/train_models.py
 
